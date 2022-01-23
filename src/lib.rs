@@ -1,5 +1,5 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LookupMap;
+use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::env::{self, random_seed};
 use near_sdk::{near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise};
 use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -17,12 +17,14 @@ const FEE: u128 = 500_000_000_000_000_000_000_000;
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
     Games,
+    CompleteGames
 }
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     games: LookupMap<GameId, Game>,
+    complete_games: Vector<GameId>,
 }
 
 #[near_bindgen]
@@ -33,8 +35,9 @@ impl Contract {
 
         env::log(b"Contract initialized");
 
-        Contract {
+        Self {
             games: LookupMap::new(StorageKeys::Games),
+            complete_games: Vector::new(StorageKeys::CompleteGames),
         }
     }
 
@@ -136,6 +139,8 @@ impl Contract {
 
                 let log_message = format!("Winner is {}", env::signer_account_id());
                 env::log(log_message.as_bytes());
+
+                self.complete_games.push(&game_id);
             } else if game.draw() {
                 game.game_state = GameState::GameEnded;
 
@@ -145,6 +150,8 @@ impl Contract {
                 Promise::new(game.player2.unwrap()).transfer(refund);
 
                 env::log(b"Draw");
+
+                self.complete_games.push(&game_id);
             } else {
                 game.whose_move = !game.whose_move;
 
@@ -154,5 +161,12 @@ impl Contract {
             panic!("Game already finished");
         }
     }
-}
 
+    #[private]
+    pub fn state_cleaner(&mut self) {
+        let game_id = self.complete_games.pop();
+        while !game_id.is_none() {
+            self.games.remove(&game_id.unwrap());
+        }
+    }
+}
