@@ -129,6 +129,8 @@ impl Contract {
             if game.win() {
                 game.game_state = GameState::GameEnded;
 
+                game.winner = Some(env::signer_account_id());
+
                 let prize = 2 * DEPOSIT - FEE;
                 Promise::new(env::signer_account_id()).transfer(prize);
 
@@ -153,3 +155,4 @@ impl Contract {
         }
     }
 }
+
