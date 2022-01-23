@@ -17,7 +17,7 @@ const FEE: u128 = 500_000_000_000_000_000_000_000;
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
     Games,
-    CompleteGames
+    CompleteGames,
 }
 
 #[near_bindgen]
