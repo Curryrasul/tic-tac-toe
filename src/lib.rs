@@ -162,18 +162,13 @@ impl Contract {
         }
     }
 
-    pub fn get_field(&self, game_id: GameId) -> [u8; 9] {
-        self.games
-            .get(&game_id)
-            .expect("No game with such GameId")
-            .field
+    pub fn get_game_state(&self, game_id: GameId) -> Game {
+        self.games.get(&game_id).expect("No game with such GameId")
     }
 
     pub fn get_games(&self) -> &LookupMap<GameId, Game> {
         &self.games
     }
-
-
 
     #[private]
     pub fn state_cleaner(&mut self) {
