@@ -14,7 +14,7 @@ pub struct Game {
     pub player2: Option<AccountId>,
     pub field: [u8; 9],
     pub round: u8,
-    pub whose_move: bool, 
+    pub whose_move: bool,
     pub game_state: GameState,
     pub winner: Option<AccountId>,
 }
@@ -22,7 +22,7 @@ pub struct Game {
 impl Game {
     pub fn win(&self) -> bool {
         let f = &self.field;
-        (f[0] == f[1] && f[0] == f[2]) 
+        (f[0] == f[1] && f[0] == f[2])
             || (f[3] == f[3] && f[3] == f[5])
             || (f[6] == f[7] && f[6] == f[8])
             || (f[0] == f[3] && f[0] == f[6])

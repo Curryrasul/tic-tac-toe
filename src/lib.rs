@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{near_bindgen, PanicOnDefault, BorshStorageKey, AccountId, Promise};
-use near_sdk::env::{self, random_seed};
 use near_sdk::collections::LookupMap;
+use near_sdk::env::{self, random_seed};
+use near_sdk::{near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 near_sdk::setup_alloc!();
@@ -63,7 +63,11 @@ impl Contract {
 
         self.games.insert(&game_id, &game);
 
-        let log_message = format!("Player {} created the game {}", env::signer_account_id(), game_id);
+        let log_message = format!(
+            "Player {} created the game {}",
+            env::signer_account_id(),
+            game_id
+        );
         env::log(log_message.as_bytes());
 
         game_id
@@ -73,19 +77,29 @@ impl Contract {
     pub fn join_game(&mut self, game_id: GameId) {
         let amount = env::attached_deposit();
         assert_eq!(amount, DEPOSIT, "Wrong deposit. Correct deposit is 3 NEAR");
-        
-        assert!(self.games.get(&game_id).is_none(), "No game with such GameId");
-        
+
+        assert!(
+            self.games.get(&game_id).is_none(),
+            "No game with such GameId"
+        );
+
         let mut game = self.games.get(&game_id).unwrap();
         game.player2 = Some(env::signer_account_id());
         game.game_state = GameState::GameInitialized;
 
-        let log_message = format!("Player {} joined the game {}", env::signer_account_id(), game_id);
+        let log_message = format!(
+            "Player {} joined the game {}",
+            env::signer_account_id(),
+            game_id
+        );
         env::log(log_message.as_bytes());
-    }  
+    }
 
     pub fn make_move(&mut self, game_id: GameId, coordinate: usize) {
-        assert!(self.games.get(&game_id).is_none(), "No game with such GameId");
+        assert!(
+            self.games.get(&game_id).is_none(),
+            "No game with such GameId"
+        );
 
         let mut game = self.games.get(&game_id).unwrap();
 
@@ -99,7 +113,10 @@ impl Contract {
 
             assert_eq!(env::signer_account_id(), whose_move, "Move order disrupted");
 
-            assert!(coordinate < 9 && game.field[coordinate] == 9, "Invalid move");
+            assert!(
+                coordinate < 9 && game.field[coordinate] == 9,
+                "Invalid move"
+            );
 
             if game.whose_move {
                 game.field[coordinate] = 1;
@@ -111,7 +128,7 @@ impl Contract {
 
             if game.win() {
                 game.game_state = GameState::GameEnded;
-                
+
                 let prize = 2 * DEPOSIT - FEE;
                 Promise::new(env::signer_account_id()).transfer(prize);
 
