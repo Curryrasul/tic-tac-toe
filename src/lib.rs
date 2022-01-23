@@ -166,10 +166,6 @@ impl Contract {
         self.games.get(&game_id).expect("No game with such GameId")
     }
 
-    pub fn get_games(&self) -> &LookupMap<GameId, Game> {
-        &self.games
-    }
-
     #[private]
     pub fn state_cleaner(&mut self) {
         let game_id = self.complete_games.pop();
