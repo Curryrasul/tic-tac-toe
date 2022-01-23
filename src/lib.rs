@@ -117,7 +117,7 @@ impl Contract {
             assert_eq!(env::signer_account_id(), whose_move, "Move order disrupted");
 
             assert!(
-                coordinate < 9 && game.field[coordinate] == 9,
+                coordinate < 9 && game.field[coordinate] != 9,
                 "Invalid move"
             );
 
