@@ -175,9 +175,9 @@ impl Contract {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    // use super::*;
-    // use near_sdk::MockedBlockchain;
-    // use near_sdk::{testing_env, VMContext};
-}
+// #[cfg(test)]
+// mod tests {
+//     // use super::*;
+//     // use near_sdk::MockedBlockchain;
+//     // use near_sdk::{testing_env, VMContext};
+// }
