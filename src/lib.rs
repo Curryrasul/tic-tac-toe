@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::env::{self};
-use near_sdk::{near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise};
+use near_sdk::{log, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise};
 // use rand::{rngs::StdRng, Rng, SeedableRng};
 
 near_sdk::setup_alloc!();
@@ -34,7 +34,7 @@ impl Contract {
     pub fn new() -> Self {
         assert!(!env::state_exists(), "Contract already initialized");
 
-        env::log(b"Contract initialized");
+        log!("Contract initialized");
 
         Self {
             games: LookupMap::new(StorageKeys::Games),
@@ -56,6 +56,8 @@ impl Contract {
         //     game_id = seeded_rng.gen_range(0..u64::MAX);
         // }
 
+        let game_id = self.next_game_id;
+
         let game = Game {
             player1: env::signer_account_id(),
             player2: None,
@@ -66,18 +68,17 @@ impl Contract {
             winner: None,
         };
 
-        self.games.insert(&self.next_game_id, &game);
+        self.games.insert(&game_id, &game);
 
-        let log_message = format!(
-            "Player {} created the game {}",
+        log!(
+            "Player {} created the game with GameId: {}",
             env::signer_account_id(),
-            self.next_game_id
+            game_id
         );
-        env::log(log_message.as_bytes());
 
         self.next_game_id += 1;
 
-        self.next_game_id - 1
+        game_id
     }
 
     #[payable]
@@ -86,25 +87,34 @@ impl Contract {
         assert_eq!(amount, DEPOSIT, "Wrong deposit. Correct deposit is 3 NEAR");
 
         assert!(
-            !self.games.get(&game_id).is_none(),
+            self.games.get(&game_id).is_some(),
             "No game with such GameId"
         );
 
         let mut game = self.games.get(&game_id).unwrap();
+
+        // let updated_game = Game {
+        //     player1: game.player1,
+        //     player2: Some(env::signer_account_id()),
+        //     game_state: GameState::GameInitialized,
+        //     ..game
+        // };
+
         game.player2 = Some(env::signer_account_id());
         game.game_state = GameState::GameInitialized;
 
-        let log_message = format!(
+        self.games.insert(&game_id, &game);
+
+        log!(
             "Player {} joined the game {}",
             env::signer_account_id(),
             game_id
         );
-        env::log(log_message.as_bytes());
     }
 
     pub fn make_move(&mut self, game_id: GameId, coordinate: usize) {
         assert!(
-            !self.games.get(&game_id).is_none(),
+            self.games.get(&game_id).is_some(),
             "No game with such GameId"
         );
 
@@ -141,8 +151,7 @@ impl Contract {
                 let prize = 2 * DEPOSIT - FEE;
                 Promise::new(env::signer_account_id()).transfer(prize);
 
-                let log_message = format!("Winner is {}", env::signer_account_id());
-                env::log(log_message.as_bytes());
+                log!("Winner is {}", env::signer_account_id());
 
                 self.complete_games.push(&game_id);
             } else if game.draw() {
@@ -150,24 +159,31 @@ impl Contract {
 
                 let refund = DEPOSIT - FEE;
 
-                Promise::new(game.player1).transfer(refund);
-                Promise::new(game.player2.unwrap()).transfer(refund);
+                Promise::new(game.player1.clone()).transfer(refund);
+                Promise::new(game.player2.clone().unwrap()).transfer(refund);
 
-                env::log(b"Draw");
+                log!("Draw");
 
                 self.complete_games.push(&game_id);
             } else {
                 game.whose_move = !game.whose_move;
 
-                env::log(b"Next move");
+                log!("Next move");
             }
+
+            self.games.insert(&game_id, &game);
         } else {
-            panic!("Game already finished");
+            panic!("Game is not active");
         }
     }
 
     pub fn get_game_state(&self, game_id: GameId) -> Game {
         self.games.get(&game_id).expect("No game with such GameId")
+    }
+
+    #[private]
+    pub fn state_cleaner_with_id(&mut self, game_id: GameId) {
+        self.games.remove(&game_id);
     }
 
     #[private]
@@ -178,10 +194,3 @@ impl Contract {
         }
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     // use super::*;
-//     // use near_sdk::MockedBlockchain;
-//     // use near_sdk::{testing_env, VMContext};
-// }
