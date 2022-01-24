@@ -1,8 +1,8 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, Vector};
-use near_sdk::env::{self, random_seed};
+use near_sdk::env::{self};
 use near_sdk::{near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+// use rand::{rngs::StdRng, Rng, SeedableRng};
 
 near_sdk::setup_alloc!();
 
@@ -24,6 +24,7 @@ pub enum StorageKeys {
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     games: LookupMap<GameId, Game>,
+    next_game_id: GameId,
     complete_games: Vector<GameId>,
 }
 
@@ -37,6 +38,7 @@ impl Contract {
 
         Self {
             games: LookupMap::new(StorageKeys::Games),
+            next_game_id: 0,
             complete_games: Vector::new(StorageKeys::CompleteGames),
         }
     }
@@ -46,13 +48,13 @@ impl Contract {
         let amount = env::attached_deposit();
         assert_eq!(amount, DEPOSIT, "Wrong deposit. Correct deposit is 3 NEAR");
 
-        let seed: [u8; 32] = random_seed().try_into().unwrap();
-        let mut seeded_rng = StdRng::from_seed(seed);
+        // let seed: [u8; 32] = random_seed().try_into().unwrap();
+        // let mut seeded_rng = StdRng::from_seed(seed);
 
-        let mut game_id: GameId = seeded_rng.gen_range(0..u64::MAX);
-        while let Some(_) = self.games.get(&game_id) {
-            game_id = seeded_rng.gen_range(0..u64::MAX);
-        }
+        // let mut game_id: GameId = seeded_rng.gen_range(0..u64::MAX);
+        // while let Some(_) = self.games.get(&game_id) {
+        //     game_id = seeded_rng.gen_range(0..u64::MAX);
+        // }
 
         let game = Game {
             player1: env::signer_account_id(),
@@ -64,16 +66,18 @@ impl Contract {
             winner: None,
         };
 
-        self.games.insert(&game_id, &game);
+        self.games.insert(&self.next_game_id, &game);
 
         let log_message = format!(
             "Player {} created the game {}",
             env::signer_account_id(),
-            game_id
+            self.next_game_id
         );
         env::log(log_message.as_bytes());
 
-        game_id
+        self.next_game_id += 1;
+
+        self.next_game_id
     }
 
     #[payable]
