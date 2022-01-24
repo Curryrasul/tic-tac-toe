@@ -93,23 +93,21 @@ impl Contract {
 
         let mut game = self.games.get(&game_id).unwrap();
 
-        // let updated_game = Game {
-        //     player1: game.player1,
-        //     player2: Some(env::signer_account_id()),
-        //     game_state: GameState::GameInitialized,
-        //     ..game
-        // };
+        match game.game_state {
+            GameState::GameCreated => {
+                game.player2 = Some(env::signer_account_id());
+                game.game_state = GameState::GameInitialized;
 
-        game.player2 = Some(env::signer_account_id());
-        game.game_state = GameState::GameInitialized;
+                self.games.insert(&game_id, &game);
 
-        self.games.insert(&game_id, &game);
-
-        log!(
-            "Player {} joined the game {}",
-            env::signer_account_id(),
-            game_id
-        );
+                log!(
+                    "Player {} joined the game {}",
+                    env::signer_account_id(),
+                    game_id
+                );
+            }
+            _ => panic!("Game already finished"),
+        }
     }
 
     pub fn make_move(&mut self, game_id: GameId, coordinate: usize) {
