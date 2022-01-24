@@ -86,7 +86,7 @@ impl Contract {
         assert_eq!(amount, DEPOSIT, "Wrong deposit. Correct deposit is 3 NEAR");
 
         assert!(
-            self.games.get(&game_id).is_none(),
+            !self.games.get(&game_id).is_none(),
             "No game with such GameId"
         );
 
@@ -104,7 +104,7 @@ impl Contract {
 
     pub fn make_move(&mut self, game_id: GameId, coordinate: usize) {
         assert!(
-            self.games.get(&game_id).is_none(),
+            !self.games.get(&game_id).is_none(),
             "No game with such GameId"
         );
 
