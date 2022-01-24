@@ -59,7 +59,7 @@ impl Contract {
         let game_id = self.next_game_id;
 
         let game = Game {
-            player1: env::signer_account_id(),
+            player1: env::predecessor_account_id(),
             player2: None,
             field: [9; 9],
             round: 0,
@@ -72,7 +72,7 @@ impl Contract {
 
         log!(
             "Player {} created the game with GameId: {}",
-            env::signer_account_id(),
+            env::predecessor_account_id(),
             game_id
         );
 
@@ -95,14 +95,14 @@ impl Contract {
 
         match game.game_state {
             GameState::GameCreated => {
-                game.player2 = Some(env::signer_account_id());
+                game.player2 = Some(env::predecessor_account_id());
                 game.game_state = GameState::GameInitialized;
 
                 self.games.insert(&game_id, &game);
 
                 log!(
                     "Player {} joined the game {}",
-                    env::signer_account_id(),
+                    env::predecessor_account_id(),
                     game_id
                 );
             }
@@ -126,7 +126,11 @@ impl Contract {
                 whose_move = game.player1.clone();
             }
 
-            assert_eq!(env::signer_account_id(), whose_move, "Move order disrupted");
+            assert_eq!(
+                env::predecessor_account_id(),
+                whose_move,
+                "Move order disrupted"
+            );
 
             assert!(
                 coordinate < 9 && game.field[coordinate] == 9,
@@ -144,12 +148,12 @@ impl Contract {
             if game.win() {
                 game.game_state = GameState::GameEnded;
 
-                game.winner = Some(env::signer_account_id());
+                game.winner = Some(env::predecessor_account_id());
 
                 let prize = 2 * DEPOSIT - FEE;
-                Promise::new(env::signer_account_id()).transfer(prize);
+                Promise::new(env::predecessor_account_id()).transfer(prize);
 
-                log!("Winner is {}", env::signer_account_id());
+                log!("Winner is {}", env::predecessor_account_id());
 
                 self.complete_games.push(&game_id);
             } else if game.draw() {
