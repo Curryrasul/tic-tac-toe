@@ -106,7 +106,7 @@ impl Contract {
                     game_id
                 );
             }
-            _ => panic!("Game already finished"),
+            _ => panic!("Game is not active"),
         }
     }
 
