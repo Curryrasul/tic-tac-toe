@@ -77,7 +77,7 @@ impl Contract {
 
         self.next_game_id += 1;
 
-        self.next_game_id
+        self.next_game_id - 1
     }
 
     #[payable]
