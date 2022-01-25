@@ -52,7 +52,7 @@ impl Contract {
     pub fn new_game(&mut self) -> GameId {
         let amount = env::attached_deposit();
 
-        assert!(amount > ONE_NEAR, "Deposit have to be > than 1 NEAR");
+        assert!(amount >= ONE_NEAR, "Deposit have to be >= than 1 NEAR");
 
         // let seed: [u8; 32] = random_seed().try_into().unwrap();
         // let mut seeded_rng = StdRng::from_seed(seed);
@@ -234,7 +234,7 @@ impl Contract {
                     "Prize is given to {} because of move time limit",
                     env::predecessor_account_id()
                 );
-                
+
                 log!("Winner is {}", env::predecessor_account_id());
             } else {
                 panic!("Last move was made {} seconds ago", interval / ONE_SECOND);
