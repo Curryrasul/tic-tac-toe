@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, Vector};
-use near_sdk::env::{self};
+use near_sdk::collections::UnorderedMap;
+use near_sdk::env;
 use near_sdk::{log, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, Promise};
 // use rand::{rngs::StdRng, Rng, SeedableRng};
 
@@ -22,15 +22,13 @@ const ONE_MINUTE: u64 = 60 * ONE_SECOND;
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
     Games,
-    CompleteGames,
 }
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
-    games: LookupMap<GameId, Game>,
+    games: UnorderedMap<GameId, Game>,
     next_game_id: GameId,
-    complete_games: Vector<GameId>,
 }
 
 #[near_bindgen]
@@ -42,9 +40,8 @@ impl Contract {
         log!("Contract initialized");
 
         Self {
-            games: LookupMap::new(StorageKeys::Games),
+            games: UnorderedMap::new(StorageKeys::Games),
             next_game_id: 0,
-            complete_games: Vector::new(StorageKeys::CompleteGames),
         }
     }
 
@@ -180,8 +177,6 @@ impl Contract {
                 Promise::new(env::predecessor_account_id()).transfer(prize);
 
                 log!("Winner is {}", env::predecessor_account_id());
-
-                self.complete_games.push(&game_id);
             } else if game.draw() {
                 game.game_state = GameState::GameEnded;
 
@@ -191,8 +186,6 @@ impl Contract {
                 Promise::new(game.player2.clone().unwrap()).transfer(refund);
 
                 log!("Draw");
-
-                self.complete_games.push(&game_id);
             } else {
                 game.whose_move = !game.whose_move;
 
@@ -246,20 +239,50 @@ impl Contract {
         }
     }
 
-    pub fn get_game_state(&self, game_id: GameId) -> Game {
-        self.games.get(&game_id).expect("No game with such GameId")
+    pub fn available_games(&self) -> Vec<(GameId, Game)> {
+        self.games
+            .iter()
+            .filter(|(_, v)| {
+                if let GameState::GameCreated = v.game_state {
+                    true
+                } else {
+                    false
+                }
+            })
+            .map(|(k, v)| (k, v))
+            .collect()
     }
 
-    #[private]
-    pub fn state_cleaner_with_id(&mut self, game_id: GameId) {
-        self.games.remove(&game_id);
-    }
+    // pub fn get_game_state(&self, game_id: GameId) -> Game {
+    //     self.games.get(&game_id).expect("No game with such GameId")
+    // }
+
+    // pub fn get_all_state(&self) -> Vec<(GameId, Game)> {
+    //     self.games.to_vec()
+    // }
+
+    // #[private]
+    // pub fn state_cleaner_with_id(&mut self, game_id: GameId) {
+    //     self.games.remove(&game_id);
+    // }
 
     #[private]
     pub fn state_cleaner(&mut self) {
-        let game_id = self.complete_games.pop();
-        while !game_id.is_none() {
-            self.games.remove(&game_id.unwrap());
+        let ended_games: Vec<_> = self
+            .games
+            .iter()
+            .filter(|(_, v)| {
+                if let GameState::GameEnded = v.game_state {
+                    true
+                } else {
+                    false
+                }
+            })
+            .map(|(k, _)| k)
+            .collect();
+
+        for i in ended_games {
+            self.games.remove(&i);
         }
     }
 }
