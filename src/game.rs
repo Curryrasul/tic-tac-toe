@@ -19,6 +19,7 @@ pub struct Game {
     pub field: [u8; 9],
     pub round: u8,
     pub whose_move: bool,
+    pub last_move_time: Option<u64>,
     pub game_state: GameState,
     pub winner: Option<AccountId>,
 }

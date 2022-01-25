@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::env::{self};
-use near_sdk::{log, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, Balance};
+use near_sdk::{log, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, Promise};
 // use rand::{rngs::StdRng, Rng, SeedableRng};
 
 near_sdk::setup_alloc!();
@@ -12,8 +12,12 @@ use game::{Game, GameState};
 type GameId = u64;
 
 const ONE_NEAR: Balance = 1_000_000_000_000_000_000_000_000;
+
 const PERCENT_FEE: u8 = 5;
 const DENOMINATOR: u128 = 100 / PERCENT_FEE as u128;
+
+const ONE_SECOND: u64 = 1_000_000_000;
+const ONE_MINUTE: u64 = 60 * ONE_SECOND;
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
@@ -67,6 +71,7 @@ impl Contract {
             field: [9; 9],
             round: 0,
             whose_move: false,
+            last_move_time: None,
             game_state: GameState::GameCreated,
             winner: None,
         };
@@ -76,7 +81,7 @@ impl Contract {
         log!(
             "Player {} created the game with GameId: {} and deposit: {} NEAR",
             env::predecessor_account_id(),
-            game_id, 
+            game_id,
             amount,
         );
 
@@ -98,13 +103,21 @@ impl Contract {
 
         match game.game_state {
             GameState::GameCreated => {
-                assert!(game.deposit <= amount, "Wrong deposit. Player1's bet is {} NEAR", game.deposit);
+                assert!(
+                    game.deposit <= amount,
+                    "Wrong deposit. Player1's bet is {} NEAR",
+                    game.deposit
+                );
 
                 if amount > game.deposit {
                     let refund = amount - game.deposit;
                     Promise::new(env::predecessor_account_id()).transfer(refund);
 
-                    log!("Refunded {} NEAR to {}", refund, env::predecessor_account_id());
+                    log!(
+                        "Refunded {} NEAR to {}",
+                        refund,
+                        env::predecessor_account_id()
+                    );
                 }
 
                 game.player2 = Some(env::predecessor_account_id());
@@ -156,6 +169,7 @@ impl Contract {
             }
 
             game.round += 1;
+            game.last_move_time = Some(env::block_timestamp());
 
             if game.win() {
                 game.game_state = GameState::GameEnded;
@@ -183,6 +197,44 @@ impl Contract {
                 game.whose_move = !game.whose_move;
 
                 log!("Next move");
+            }
+
+            self.games.insert(&game_id, &game);
+        } else {
+            panic!("Game is not active");
+        }
+    }
+
+    pub fn get_prize(&mut self, game_id: GameId) {
+        assert!(
+            self.games.get(&game_id).is_some(),
+            "No game with such GameId"
+        );
+
+        let mut game = self.games.get(&game_id).unwrap();
+
+        if let GameState::GameInitialized = game.game_state {
+            assert!(game.round != 0);
+
+            if game.whose_move {
+                assert!(env::predecessor_account_id() == game.player1);
+            } else {
+                assert!(env::predecessor_account_id() == game.player2.clone().unwrap());
+            }
+
+            let interval = env::block_timestamp() - game.last_move_time.unwrap();
+            if interval > ONE_MINUTE {
+                game.winner = Some(env::predecessor_account_id());
+                game.game_state = GameState::GameEnded;
+
+                let prize = 2 * (game.deposit - game.deposit / DENOMINATOR);
+                Promise::new(env::predecessor_account_id()).transfer(prize);
+
+                log!(
+                    "Prize is given to {} because of move time limit",
+                    env::predecessor_account_id()
+                );
+                log!("Winner is {}", env::predecessor_account_id());
             }
 
             self.games.insert(&game_id, &game);
