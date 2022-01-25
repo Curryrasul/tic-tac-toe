@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::Serialize;
-use near_sdk::AccountId;
+use near_sdk::{AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -14,6 +14,7 @@ pub enum GameState {
 #[serde(crate = "near_sdk::serde")]
 pub struct Game {
     pub player1: AccountId,
+    pub deposit: Balance,
     pub player2: Option<AccountId>,
     pub field: [u8; 9],
     pub round: u8,

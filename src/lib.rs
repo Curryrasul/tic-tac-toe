@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::env::{self};
-use near_sdk::{log, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise};
+use near_sdk::{log, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, Balance};
 // use rand::{rngs::StdRng, Rng, SeedableRng};
 
 near_sdk::setup_alloc!();
@@ -11,8 +11,9 @@ use game::{Game, GameState};
 
 type GameId = u64;
 
-const DEPOSIT: u128 = 3_000_000_000_000_000_000_000_000;
-const FEE: u128 = 500_000_000_000_000_000_000_000;
+const ONE_NEAR: Balance = 1_000_000_000_000_000_000_000_000;
+const PERCENT_FEE: u8 = 5;
+const DENOMINATOR: u128 = 100 / PERCENT_FEE as u128;
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
@@ -46,7 +47,8 @@ impl Contract {
     #[payable]
     pub fn new_game(&mut self) -> GameId {
         let amount = env::attached_deposit();
-        assert_eq!(amount, DEPOSIT, "Wrong deposit. Correct deposit is 3 NEAR");
+
+        assert!(amount > ONE_NEAR, "Deposit have to be > than 1 NEAR");
 
         // let seed: [u8; 32] = random_seed().try_into().unwrap();
         // let mut seeded_rng = StdRng::from_seed(seed);
@@ -60,6 +62,7 @@ impl Contract {
 
         let game = Game {
             player1: env::predecessor_account_id(),
+            deposit: amount,
             player2: None,
             field: [9; 9],
             round: 0,
@@ -71,9 +74,10 @@ impl Contract {
         self.games.insert(&game_id, &game);
 
         log!(
-            "Player {} created the game with GameId: {}",
+            "Player {} created the game with GameId: {} and deposit: {} NEAR",
             env::predecessor_account_id(),
-            game_id
+            game_id, 
+            amount,
         );
 
         self.next_game_id += 1;
@@ -84,7 +88,6 @@ impl Contract {
     #[payable]
     pub fn join_game(&mut self, game_id: GameId) {
         let amount = env::attached_deposit();
-        assert_eq!(amount, DEPOSIT, "Wrong deposit. Correct deposit is 3 NEAR");
 
         assert!(
             self.games.get(&game_id).is_some(),
@@ -95,6 +98,15 @@ impl Contract {
 
         match game.game_state {
             GameState::GameCreated => {
+                assert!(game.deposit <= amount, "Wrong deposit. Player1's bet is {} NEAR", game.deposit);
+
+                if amount > game.deposit {
+                    let refund = amount - game.deposit;
+                    Promise::new(env::predecessor_account_id()).transfer(refund);
+
+                    log!("Refunded {} NEAR to {}", refund, env::predecessor_account_id());
+                }
+
                 game.player2 = Some(env::predecessor_account_id());
                 game.game_state = GameState::GameInitialized;
 
@@ -150,7 +162,7 @@ impl Contract {
 
                 game.winner = Some(env::predecessor_account_id());
 
-                let prize = 2 * DEPOSIT - FEE;
+                let prize = 2 * (game.deposit - game.deposit / DENOMINATOR);
                 Promise::new(env::predecessor_account_id()).transfer(prize);
 
                 log!("Winner is {}", env::predecessor_account_id());
@@ -159,7 +171,7 @@ impl Contract {
             } else if game.draw() {
                 game.game_state = GameState::GameEnded;
 
-                let refund = DEPOSIT - FEE;
+                let refund = game.deposit - game.deposit / DENOMINATOR;
 
                 Promise::new(game.player1.clone()).transfer(refund);
                 Promise::new(game.player2.clone().unwrap()).transfer(refund);
