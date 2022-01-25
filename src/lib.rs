@@ -235,6 +235,8 @@ impl Contract {
                     env::predecessor_account_id()
                 );
                 log!("Winner is {}", env::predecessor_account_id());
+            } else {
+                panic!("Last move was made {} seconds ago", interval / ONE_SECOND);
             }
 
             self.games.insert(&game_id, &game);
