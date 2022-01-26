@@ -290,9 +290,9 @@ impl Contract {
         }
     }
 
-    // pub fn get_game_state(&self, game_id: GameId) -> Game {
-    //     self.games.get(&game_id).expect("No game with such GameId")
-    // }
+    pub fn get_game_state(&self, game_id: GameId) -> Game {
+        self.games.get(&game_id).expect("No game with such GameId")
+    }
 
     // pub fn get_all_state(&self) -> Vec<(GameId, Game)> {
     //     self.games.to_vec()
