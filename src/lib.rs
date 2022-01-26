@@ -253,6 +253,43 @@ impl Contract {
             .collect()
     }
 
+    pub fn cancel_game(&mut self, game_id: GameId) {
+        let p = env::predecessor_account_id();
+
+        assert!(
+            self.games.get(&game_id).is_some(),
+            "No game with such GameId"
+        );
+
+        let mut game = self.games.get(&game_id).unwrap();
+
+        match game.game_state {
+            GameState::GameCreated => {
+                assert_eq!(p, game.player1, "Player1 is not {}", p);
+
+                Promise::new(p).transfer(game.deposit);
+
+                self.games.remove(&game_id);
+
+                log!("Game {} was canceled", game_id);
+            }
+            GameState::GameInitialized => {
+                assert!(game.round == 0, "Game already started");
+                assert_eq!(p, game.player2.unwrap(), "Player2 is not {}", p);
+
+                Promise::new(p).transfer(game.deposit);
+
+                game.player2 = None;
+                game.game_state = GameState::GameCreated;
+
+                self.games.insert(&game_id, &game);
+
+                log!("Game {} is available again", game_id);
+            }
+            _ => panic!("Game is not active"),
+        }
+    }
+
     // pub fn get_game_state(&self, game_id: GameId) -> Game {
     //     self.games.get(&game_id).expect("No game with such GameId")
     // }
