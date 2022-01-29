@@ -98,37 +98,36 @@ impl Contract {
 
         let mut game = self.games.get(&game_id).unwrap();
 
-        match game.game_state {
-            GameState::GameCreated => {
-                assert!(
-                    game.deposit <= amount,
-                    "Wrong deposit. Player1's bet is {} NEAR",
-                    game.deposit
-                );
+        if let GameState::GameCreated = game.game_state {
+            assert!(
+                game.deposit <= amount,
+                "Wrong deposit. Player1's bet is {} NEAR",
+                game.deposit
+            );
 
-                if amount > game.deposit {
-                    let refund = amount - game.deposit;
-                    Promise::new(env::predecessor_account_id()).transfer(refund);
-
-                    log!(
-                        "Refunded {} NEAR to {}",
-                        refund,
-                        env::predecessor_account_id()
-                    );
-                }
-
-                game.player2 = Some(env::predecessor_account_id());
-                game.game_state = GameState::GameInitialized;
-
-                self.games.insert(&game_id, &game);
+            if amount > game.deposit {
+                let refund = amount - game.deposit;
+                Promise::new(env::predecessor_account_id()).transfer(refund);
 
                 log!(
-                    "Player {} joined the game {}",
-                    env::predecessor_account_id(),
-                    game_id
+                    "Refunded {} NEAR to {}",
+                    refund,
+                    env::predecessor_account_id()
                 );
             }
-            _ => panic!("Game is not active"),
+
+            game.player2 = Some(env::predecessor_account_id());
+            game.game_state = GameState::GameInitialized;
+
+            self.games.insert(&game_id, &game);
+
+            log!(
+                "Player {} joined the game {}",
+                env::predecessor_account_id(),
+                game_id
+            );
+        } else {
+            panic!("Game is not active");
         }
     }
 
