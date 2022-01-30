@@ -238,20 +238,6 @@ impl Contract {
         }
     }
 
-    pub fn available_games(&self) -> Vec<(GameId, Game)> {
-        self.games
-            .iter()
-            .filter(|(_, v)| {
-                if let GameState::GameCreated = v.game_state {
-                    true
-                } else {
-                    false
-                }
-            })
-            .map(|(k, v)| (k, v))
-            .collect()
-    }
-
     pub fn cancel_game(&mut self, game_id: GameId) {
         let p = env::predecessor_account_id();
 
@@ -287,6 +273,20 @@ impl Contract {
             }
             _ => panic!("Game is not active"),
         }
+    }
+
+    pub fn available_games(&self) -> Vec<(GameId, Game)> {
+        self.games
+            .iter()
+            .filter(|(_, v)| {
+                if let GameState::GameCreated = v.game_state {
+                    true
+                } else {
+                    false
+                }
+            })
+            .map(|(k, v)| (k, v))
+            .collect()
     }
 
     pub fn get_game_state(&self, game_id: GameId) -> Game {
