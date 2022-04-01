@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
 use near_sdk::env;
-use near_sdk::{log, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, Promise};
+use near_sdk::{log, near_bindgen, Balance, BorshStorageKey, PanicOnDefault, Promise};
 // use rand::{rngs::StdRng, Rng, SeedableRng};
 
 near_sdk::setup_alloc!();
@@ -140,12 +140,11 @@ impl Contract {
         let mut game = self.games.get(&game_id).unwrap();
 
         if let GameState::GameInitialized = game.game_state {
-            let whose_move: AccountId;
-            if game.whose_move {
-                whose_move = game.player2.clone().unwrap();
+            let whose_move = if game.whose_move {
+                game.player2.clone().unwrap()
             } else {
-                whose_move = game.player1.clone();
-            }
+                game.player1.clone()
+            };
 
             assert_eq!(
                 env::predecessor_account_id(),
@@ -278,13 +277,7 @@ impl Contract {
     pub fn available_games(&self) -> Vec<(GameId, Game)> {
         self.games
             .iter()
-            .filter(|(_, v)| {
-                if let GameState::GameCreated = v.game_state {
-                    true
-                } else {
-                    false
-                }
-            })
+            .filter(|(_, v)| matches!(v.game_state, GameState::GameCreated))
             .map(|(k, v)| (k, v))
             .collect()
     }
@@ -307,13 +300,7 @@ impl Contract {
         let ended_games: Vec<_> = self
             .games
             .iter()
-            .filter(|(_, v)| {
-                if let GameState::GameEnded = v.game_state {
-                    true
-                } else {
-                    false
-                }
-            })
+            .filter(|(_, v)| matches!(v.game_state, GameState::GameEnded))
             .map(|(k, _)| k)
             .collect();
 
